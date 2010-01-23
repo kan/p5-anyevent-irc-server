@@ -1,0 +1,4 @@
+Makefile
+inc/
+*.old
+*.bak
