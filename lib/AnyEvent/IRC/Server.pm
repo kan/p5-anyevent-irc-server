@@ -47,10 +47,9 @@ sub new {
             unless ($nick) {
                 # 461 * NICK :Not enough parameters
                 $say->($handle, ERR_NEEDMOREPARAMS, 'NICK', 'Not enough parameters');
-                return 0;
+                return;
             }
             $handle->{nick} = $nick;
-            1;
         },
         user => sub {
             my ($self, $msg, $handle) = @_;
@@ -59,19 +58,17 @@ sub new {
             $say->( $handle, RPL_CREATED(), "This server was created $self->{ctime}");
             $say->( $handle, RPL_MYINFO(), "@{[ $self->servername ]} @{[ ref $self ]}-$VERSION" ); # 004
             $say->( $handle, ERR_NOMOTD(), "MOTD File is missing" );
-            1;
         },
         'join' => sub {
             my ($self, $msg, $handle) = @_;
             my ($chans) = @{$msg->{params}};
             unless ($chans) {
                 $say->($handle, ERR_NEEDMOREPARAMS, 'JOIN', 'Need more params');
-                return 0;
+                return;
             }
             for my $chan ( split /,/, $chans ) {
                 push @{$self->channels->{$chan}->{handles}}, $handle;
             }
-            1;
         },
 #       'privmsg' => sub {
 #           1;
