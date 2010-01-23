@@ -12,10 +12,6 @@ __PACKAGE__->mk_accessors(qw/host port handles servername channels/);
 
 my $CRLF = "\015\012";
 
-sub _name_to_rfc_code {
-    $AnyEvent::IRC::Util::RFC_NUMCODE_MAP{$_[0]};
-}
-
 BEGIN {
     no strict 'refs';
     while (my ($code, $name) = each %AnyEvent::IRC::Util::RFC_NUMCODE_MAP) {
