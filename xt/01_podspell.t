@@ -8,3 +8,7 @@ __DATA__
 Default Name
 default {at} example.com
 AnyEvent::IRC::Server
+Kan
+Fushihara
+Tokuhiro
+Matsuno
