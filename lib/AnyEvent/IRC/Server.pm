@@ -136,6 +136,19 @@ AnyEvent::IRC::Server -
 
 AnyEvent::IRC::Server is
 
+=head1 ROADMAP
+
+    - useful for testing
+    -- support /kick
+    -- notice support
+    -- part support
+
+    - useful for XIRCD
+    -- authentication
+
+    - useful for public irc server
+    -- anti flooder
+
 =head1 AUTHOR
 
 Kan Fushihara E<lt>default {at} example.comE<gt>
