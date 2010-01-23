@@ -25,7 +25,7 @@ BEGIN {
 
 sub new {
     my $class = shift;
-    bless {
+    my $self = $class->SUPER::new(
         handles => {},
         channels => {},
         welcome => 'Welcome to the my IRC server',
@@ -33,7 +33,51 @@ sub new {
         network    => 'FushiharaNET',
         ctime      => POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime()),
         @_,
-    }, $class;
+    );
+
+    my $say = sub {
+        my ($handle, $cmd, @args) = @_;
+        my $msg = mk_msg($self->host, $cmd, $handle->{nick}, @args) . $CRLF;
+        $handle->push_write($msg)
+    };
+    $self->reg_cb(
+        nick => sub {
+            my ($self, $msg, $handle) = @_;
+            my ($nick) = @{$msg->{params}};
+            unless ($nick) {
+                # 461 * NICK :Not enough parameters
+                $say->($handle, ERR_NEEDMOREPARAMS, 'NICK', 'Not enough parameters');
+                return 0;
+            }
+            $handle->{nick} = $nick;
+            1;
+        },
+        user => sub {
+            my ($self, $msg, $handle) = @_;
+            $say->( $handle, RPL_WELCOME(), $self->{welcome} );
+            $say->( $handle, RPL_YOURHOST(), "Your host is @{[ $self->servername ]} [@{[ $self->servername ]}/@{[ $self->port ]}]. @{[ ref $self ]}/$VERSION" ); # 002
+            $say->( $handle, RPL_CREATED(), "This server was created $self->{ctime}");
+            $say->( $handle, RPL_MYINFO(), "@{[ $self->servername ]} @{[ ref $self ]}-$VERSION" ); # 004
+            $say->( $handle, ERR_NOMOTD(), "MOTD File is missing" );
+            1;
+        },
+        'join' => sub {
+            my ($self, $msg, $handle) = @_;
+            my ($chans) = @{$msg->{params}};
+            unless ($chans) {
+                $say->($handle, ERR_NEEDMOREPARAMS, 'JOIN', 'Need more params');
+                return 0;
+            }
+            for my $chan ( split /,/, $chans ) {
+                push @{$self->channels->{$chan}->{handles}}, $handle;
+            }
+            1;
+        },
+#       'privmsg' => sub {
+#           1;
+#       },
+    );
+    return $self;
 }
 
 sub run {
@@ -72,52 +116,6 @@ sub handle_msg {
     my ($self, $msg, $handle) = @_;
     my $event = lc($msg->{command});
        $event =~ s/^(\d+)$/irc_$1/g;
-
-    my $say = sub {
-        my ($cmd, @args) = @_;
-        my $msg = mk_msg($self->host, $cmd, $handle->{nick}, @args) . $CRLF;
-        $handle->push_write($msg)
-    };
-    my $code = +{
-        nick => sub {
-            my ($nick) = @{$msg->{params}};
-            unless ($nick) {
-                # 461 * NICK :Not enough parameters
-                $say->(ERR_NEEDMOREPARAMS, 'NICK', 'Not enough parameters');
-                return 0;
-            }
-            $handle->{nick} = $nick;
-            1;
-        },
-        user => sub {
-            $say->( RPL_WELCOME(), $self->{welcome} );
-            $say->( RPL_YOURHOST(), "Your host is @{[ $self->servername ]} [@{[ $self->servername ]}/@{[ $self->port ]}]. @{[ ref $self ]}/$VERSION" ); # 002
-            $say->( RPL_CREATED(), "This server was created $self->{ctime}");
-            $say->( RPL_MYINFO(), "@{[ $self->servername ]} @{[ ref $self ]}-$VERSION" ); # 004
-            $say->( ERR_NOMOTD(), "MOTD File is missing" );
-            1;
-        },
-        'join' => sub {
-            my ($chans) = @{$msg->{params}};
-            unless ($chans) {
-                $say->(ERR_NEEDMOREPARAMS, 'JOIN', 'Need more params');
-                return 0;
-            }
-            for my $chan ( split /,/, $chans ) {
-                push @{$self->channels->{$chan}->{handles}}, $handle;
-            }
-            1;
-        },
-#       'privmsg' => sub {
-#           1;
-#       },
-    }->{$event};
-    if ($code) {
-        my $ret = $code->();
-        unless ($ret) {
-            return;
-        }
-    }
     $self->event($event, $msg, $handle);
 }
 
