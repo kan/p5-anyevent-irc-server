@@ -69,16 +69,17 @@ sub new {
                 push @{$self->channels->{$chan}->{handles}}, $handle;
 
                 # server reply
-                $say->( $handle, RPL_TOPIC(), $chan, $self->topics->{$chan} );
+                $say->( $handle, RPL_TOPIC(), $chan, $self->topics->{$chan} || '' );
                 $say->( $handle, RPL_NAMREPLY(), $chan, "duke" ); # TODO
 
                 # send join message
                 my $nick = $handle->{nick};
                 my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
-                my $raw = mk_msg($comment, 'JOIN', $chan, $msg) . $CRLF;
+                my $raw = mk_msg($comment, 'JOIN', $chan) . $CRLF;
                 for my $handle (@{$self->channels->{$chan}->{handles}}) {
                     $handle->push_write($raw);
                 }
+                $self->event('daemon_join' => $nick, $chan);
             }
         },
         topic => sub {
@@ -95,9 +96,14 @@ sub new {
             }
             $self->_send_chan_msg($handle, $chan, 'TOPIC', $chan, $self->topics->{$chan});
         },
-#       'privmsg' => sub {
-#           1;
-#       },
+        'privmsg' => sub {
+            my ($irc, $msg, $handle) = @_;
+            my ($chan, $text) = @{$msg->{params}};
+            unless ($chan) {
+                return $need_more_params->($handle, 'PRIVMSG');
+            }
+            $self->event('daemon_privmsg' => $chan, $text);
+        },
     );
     return $self;
 }
@@ -158,6 +164,21 @@ sub send_privmsg {
     my $raw = mk_msg($comment, 'PRIVMSG', $chan, $msg) . $CRLF;
     for my $handle (@{$self->channels->{$chan}->{handles}}) {
         $handle->push_write($raw);
+    }
+}
+
+# -------------------------------------------------------------------------
+
+sub daemon_cmd_join {
+    my ($self, $nick, $chan) = @_;
+    # TODO
+    $self->event('daemon_join' => $nick, $chan);
+}
+
+sub daemon_cmd_privmsg {
+    my ($self, $nick, $chan, $msg) = @_;
+    for my $line (split /\r?\n/, $msg) {
+        $self->send_privmsg($nick, $chan, $line);
     }
 }
 
