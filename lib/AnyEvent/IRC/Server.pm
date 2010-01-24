@@ -7,6 +7,7 @@ use base qw/Object::Event Class::Accessor::Fast/;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 use AnyEvent::IRC::Util qw/parse_irc_msg mk_msg/;
+use POSIX;
 
 __PACKAGE__->mk_accessors(qw/host port handles servername channels topics/);
 
@@ -68,7 +69,7 @@ sub new {
                 push @{$self->channels->{$chan}->{handles}}, $handle;
 
                 # server reply
-                $say->( $handle, RPL_TOPIC(), $chan, '' ); # TODO: should return valid topic
+                $say->( $handle, RPL_TOPIC(), $chan, $self->topics->{$chan} );
                 $say->( $handle, RPL_NAMREPLY(), $chan, "duke" ); # TODO
 
                 # send join message
