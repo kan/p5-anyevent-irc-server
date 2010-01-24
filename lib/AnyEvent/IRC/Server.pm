@@ -67,20 +67,39 @@ sub new {
                 return $need_more_params->($handle, 'JOIN');
             }
             for my $chan ( split /,/, $chans ) {
-                push @{$self->channels->{$chan}->{handles}}, $handle;
+                my $nick = $handle->{nick};
+                $self->channels->{$chan}->{handles}->{$nick} = $handle;
 
                 # server reply
                 $say->( $handle, RPL_TOPIC(), $chan, $self->topics->{$chan} || '' );
                 $say->( $handle, RPL_NAMREPLY(), $chan, "duke" ); # TODO
 
                 # send join message
-                my $nick = $handle->{nick};
                 my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
                 my $raw = mk_msg($comment, 'JOIN', $chan) . $CRLF;
-                for my $handle (@{$self->channels->{$chan}->{handles}}) {
+                for my $handle (values %{$self->channels->{$chan}->{handles}}) {
                     $handle->push_write($raw);
                 }
                 $self->event('daemon_join' => $nick, $chan);
+            }
+        },
+        part => sub {
+            my ($self, $msg, $handle) = @_;
+            my ($chans) = @{$msg->{params}};
+            unless ($chans) {
+                return $need_more_params->($handle, 'PART');
+            }
+            for my $chan ( split /,/, $chans ) {
+                my $nick = $handle->{nick};
+
+                # send part message
+                my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+                my $raw = mk_msg($comment, 'PART', $chan) . $CRLF;
+                for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+                    $handle->push_write($raw);
+                }
+                delete $self->channels->{$chan}->{handles}->{$nick};
+                $self->event('daemon_part' => $nick, $chan);
             }
         },
         topic => sub {
@@ -115,7 +134,8 @@ sub _send_chan_msg {
     my $nick = $handle->{nick};
     my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
     my $raw = mk_msg($comment, @args) . $CRLF;
-    for my $handle (@{$self->channels->{$chan}->{handles}}) {
+    for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+        next if $handle->{nick} eq $nick;
         $handle->push_write($raw);
     }
 }
@@ -163,7 +183,7 @@ sub send_privmsg {
     my ($self, $nick, $chan, $msg) = @_;
     my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
     my $raw = mk_msg($comment, 'PRIVMSG', $chan, $msg) . $CRLF;
-    for my $handle (@{$self->channels->{$chan}->{handles}}) {
+    for my $handle (values %{$self->channels->{$chan}->{handles}}) {
         $handle->push_write($raw);
     }
 }
