@@ -2,7 +2,7 @@ use inc::Module::Install;
 name 'AnyEvent-IRC-Server';
 all_from 'lib/AnyEvent/IRC/Server.pm';
 
-requires 'AnyEvent::Util';
+requires 'AnyEvent::IRC';
 requires 'Object::Event';
 
 tests 't/*.t';
