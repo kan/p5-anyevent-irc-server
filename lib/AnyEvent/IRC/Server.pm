@@ -7,6 +7,7 @@ use base qw/Object::Event Class::Accessor::Fast/;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 use AnyEvent::IRC::Util qw/parse_irc_msg mk_msg/;
+use Sys::Hostname;
 use POSIX;
 
 __PACKAGE__->mk_accessors(qw/host port handles servername channels topics/);
@@ -27,8 +28,8 @@ sub new {
         channels => {},
         topics   => {},
         welcome => 'Welcome to the my IRC server',
-        servername => 'fushihara.anyevent.server.irc',
-        network    => 'FushiharaNET',
+        servername => hostname(),
+        network    => 'AnyEventIRCServer',
         ctime      => POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime()),
         @_,
     );
