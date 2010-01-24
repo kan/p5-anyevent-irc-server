@@ -8,7 +8,7 @@ use AnyEvent::Handle;
 use AnyEvent::Socket;
 use AnyEvent::IRC::Util qw/parse_irc_msg mk_msg/;
 
-__PACKAGE__->mk_accessors(qw/host port handles servername channels/);
+__PACKAGE__->mk_accessors(qw/host port handles servername channels topics/);
 
 my $CRLF = "\015\012";
 
@@ -24,6 +24,7 @@ sub new {
     my $self = $class->SUPER::new(
         handles => {},
         channels => {},
+        topics   => {},
         welcome => 'Welcome to the my IRC server',
         servername => 'fushihara.anyevent.server.irc',
         network    => 'FushiharaNET',
@@ -36,14 +37,16 @@ sub new {
         my $msg = mk_msg($self->host, $cmd, $handle->{nick}, @args) . $CRLF;
         $handle->push_write($msg)
     };
+    my $need_more_params = sub {
+        my ($handle, $cmd) = @_;
+        $say->($handle, ERR_NEEDMOREPARAMS, $cmd, 'Not enough parameters');
+    };
     $self->reg_cb(
         nick => sub {
             my ($self, $msg, $handle) = @_;
             my ($nick) = @{$msg->{params}};
             unless ($nick) {
-                # 461 * NICK :Not enough parameters
-                $say->($handle, ERR_NEEDMOREPARAMS, 'NICK', 'Not enough parameters');
-                return;
+                return $need_more_params->($handle, 'NICK');
             }
             $handle->{nick} = $nick;
         },
@@ -59,14 +62,13 @@ sub new {
             my ($self, $msg, $handle) = @_;
             my ($chans) = @{$msg->{params}};
             unless ($chans) {
-                $say->($handle, ERR_NEEDMOREPARAMS, 'JOIN', 'Need more params');
-                return;
+                return $need_more_params->($handle, 'JOIN');
             }
             for my $chan ( split /,/, $chans ) {
                 push @{$self->channels->{$chan}->{handles}}, $handle;
 
                 # server reply
-                $say->( $handle, RPL_TOPIC(), $chan, '' );
+                $say->( $handle, RPL_TOPIC(), $chan, '' ); # TODO: should return valid topic
                 $say->( $handle, RPL_NAMREPLY(), $chan, "duke" ); # TODO
 
                 # send join message
@@ -78,11 +80,36 @@ sub new {
                 }
             }
         },
+        topic => sub {
+            my ($irc, $msg, $handle) = @_;
+            my ($chan, $topic) = @{$msg->{params}};
+            unless ($chan) {
+                return $need_more_params->($handle, 'TOPIC');
+            }
+            if ($topic) {
+                $self->topics->{$chan} = $topic;
+                $say->( $handle, RPL_TOPIC, $self->topics->{$chan} );
+            } else {
+                $say->( $handle, RPL_NOTOPIC, $chan, 'No topic is set' );
+            }
+            $self->_send_chan_msg($handle, $chan, 'TOPIC', $chan, $self->topics->{$chan});
+        },
 #       'privmsg' => sub {
 #           1;
 #       },
     );
     return $self;
+}
+
+sub _send_chan_msg {
+    my ($self, $handle, $chan, @args) = @_;
+    # send join message
+    my $nick = $handle->{nick};
+    my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+    my $raw = mk_msg($comment, @args) . $CRLF;
+    for my $handle (@{$self->channels->{$chan}->{handles}}) {
+        $handle->push_write($raw);
+    }
 }
 
 sub run {
@@ -154,6 +181,8 @@ AnyEvent::IRC::Server is
     -- support /kick
     -- notice support
     -- part support
+    -- mode support
+    -- who support
 
     - useful for XIRCD
     -- authentication

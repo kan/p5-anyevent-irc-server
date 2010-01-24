@@ -21,6 +21,7 @@ test_tcp(
                 ok 1, 'registered';
                 $irc->send_srv(JOIN => '#foo');
                 $irc->send_srv(PRIVMSG => '#foo', 'yo');
+                $irc->send_srv(TOPIC => 'boo');
             },
             sent => sub {
                 ok 1, 'sentsrv';
