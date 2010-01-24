@@ -64,6 +64,18 @@ sub new {
             }
             for my $chan ( split /,/, $chans ) {
                 push @{$self->channels->{$chan}->{handles}}, $handle;
+
+                # server reply
+                $say->( $handle, RPL_TOPIC(), $chan, '' );
+                $say->( $handle, RPL_NAMREPLY(), $chan, "duke" ); # TODO
+
+                # send join message
+                my $nick = $handle->{nick};
+                my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+                my $raw = mk_msg($comment, 'JOIN', $chan, $msg) . $CRLF;
+                for my $handle (@{$self->channels->{$chan}->{handles}}) {
+                    $handle->push_write($raw);
+                }
             }
         },
 #       'privmsg' => sub {

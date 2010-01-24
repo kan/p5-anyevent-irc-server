@@ -10,6 +10,7 @@ test_tcp(
     client => sub {
         my $port = shift;
         my $cv = AE::cv();
+        my $cv_join = AE::cv();
 
         my $irc = AnyEvent::IRC::Client->new();
         $irc->reg_cb(
@@ -33,8 +34,12 @@ test_tcp(
                 is $channel, '#foo';
                 is $command, 'PRIVMSG';
                 is $who, 'kan!~kan@fushihara.anyevent.server.irc';
-                is $msg, 'YEAAAAH!';
+                is $msg, 'YEAAAAH!', 'publicmsg';
                 $cv->send();
+            },
+            'join' => sub {
+                ok 1, 'join event';
+                $cv_join->send();
             },
         );
         $irc->connect(
@@ -49,6 +54,7 @@ test_tcp(
         );
 
         $cv->recv();
+        $cv_join->recv();
 
         done_testing;
     },
