@@ -263,12 +263,7 @@ sub _intern_part {
     $msg ||= $nick;
 
     # send part message
-#   my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
     $self->_send_chan_msg($nick, $chan, 'PART', $chan, $msg);
-#   my $raw = mk_msg($comment, 'PART', $chan, $msg) . $CRLF;
-#   for my $handle (values %{$self->channels->{$chan}->{handles}}) {
-#       $handle->push_write($raw);
-#   }
     delete $self->channels->{$chan}->{handles}->{$nick};
     $self->event('daemon_part' => $nick, $chan);
 }
