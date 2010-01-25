@@ -13,23 +13,25 @@ test_tcp(
         my $cv_join = AE::cv();
 
         my @callbacks = (
+#           sub {
+#               my ($channel, $raw) = @_;
+#               my $who          = $raw->{prefix} || '*';
+#               my $channel_name = $raw->{params}->[0];
+#               my $msg          = $raw->{params}->[1];
+#               my $command      = $raw->{command};
+#               note 'test1';
+#               is $channel, '#foo';
+#               is $command, 'PRIVMSG';
+#               is $who, 'testbot!~testbot@fushihara.anyevent.server.irc';
+#               is $msg, 'yo', 'publicmsg';
+#           },
             sub {
                 my ($channel, $raw) = @_;
                 my $who          = $raw->{prefix} || '*';
                 my $channel_name = $raw->{params}->[0];
                 my $msg          = $raw->{params}->[1];
                 my $command      = $raw->{command};
-                is $channel, '#foo';
-                is $command, 'PRIVMSG';
-                is $who, 'testbot!~testbot@fushihara.anyevent.server.irc';
-                is $msg, 'yo', 'publicmsg';
-            },
-            sub {
-                my ($channel, $raw) = @_;
-                my $who          = $raw->{prefix} || '*';
-                my $channel_name = $raw->{params}->[0];
-                my $msg          = $raw->{params}->[1];
-                my $command      = $raw->{command};
+                note 'test2';
                 is $channel, '#foo';
                 is $command, 'PRIVMSG';
                 is $who, 'kan!~kan@fushihara.anyevent.server.irc';

@@ -32,6 +32,7 @@ sub new {
         servername   => hostname(),
         network      => 'AnyEventIRCServer',
         ctime        => POSIX::strftime( '%Y-%m-%d %H:%M:%S', localtime() ),
+        channel_chars => '#&',
         @_,
     );
 
@@ -152,9 +153,18 @@ sub _send_chan_msg {
     # send join message
     my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
     my $raw = mk_msg($comment, @args) . $CRLF;
-    for my $handle (values %{$self->channels->{$chan}->{handles}}) {
-        next if $handle->{nick} eq $nick;
-        $handle->push_write($raw);
+    if ($self->is_channel_name($chan)) {
+        for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+            next if $handle->{nick} eq $nick;
+            $handle->push_write($raw);
+        }
+    } else {
+        # private talk
+        # TODO: TOO SLOW
+        my $handle = $self->nick2handle($chan);
+        if ($handle) {
+            $handle->push_write($raw);
+        }
     }
 }
 
@@ -237,20 +247,7 @@ sub daemon_cmd_privmsg {
 
 sub _intern_privmsg {
     my ($self, $nick, $chan, $text) = @_;
-    my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
-    my $raw = mk_msg($comment, 'PRIVMSG', $chan, $text) . $CRLF;
-    if ($chan =~ /^[#&]/) {
-        for my $handle (values %{$self->channels->{$chan}->{handles}}) {
-            $handle->push_write($raw);
-        }
-    } else {
-        # private talk
-        # TODO: TOO SLOW
-        my $handle = $self->nick2handle($chan);
-        if ($handle) {
-            $handle->push_write($raw);
-        }
-    }
+    $self->_send_chan_msg($nick, $chan, 'PRIVMSG', $chan, $text);
     $self->event('daemon_privmsg' => $nick, $chan, $text);
 }
 
@@ -289,6 +286,14 @@ sub _intern_kick {
     }
     delete $self->channels->{$chan}->{handles}->{$kickee};
     $self->event('daemon_kick' => $kicker, $chan, $kickee, $comment);
+}
+
+# -------------------------------------------------------------------------
+
+sub is_channel_name {
+    my ( $self, $string ) = @_;
+    my $cchrs = $self->{channel_chars};
+    $string =~ /^([\Q$cchrs\E]+)(.+)$/;
 }
 
 1;
