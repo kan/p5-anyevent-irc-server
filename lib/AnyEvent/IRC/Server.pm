@@ -10,7 +10,7 @@ use AnyEvent::IRC::Util qw/parse_irc_msg mk_msg/;
 use Sys::Hostname;
 use POSIX;
 
-__PACKAGE__->mk_accessors(qw/host port handles servername channels topics spoofed_nick/);
+__PACKAGE__->mk_accessors(qw/host port handles servername channels topics spoofed_nick prepared_cb/);
 
 my $CRLF = "\015\012";
 
@@ -33,6 +33,10 @@ sub new {
         network      => 'AnyEventIRCServer',
         ctime        => POSIX::strftime( '%Y-%m-%d %H:%M:%S', localtime() ),
         channel_chars => '#&',
+        prepared_cb  => sub {
+            my ($self, $host, $port) = @_;
+            print "$class is ready on : $host:$port\n";
+        },
         @_,
     );
 
@@ -120,18 +124,13 @@ sub new {
             $self->_intern_privmsg($nick, $chan, $text);
         },
         'notice' => sub {
-            my ($irc, $msg, $handle) = @_;
-            my ($chan, $text) = @{$msg->{params}};
-            unless ($chan) {
+            my ($irc, $raw, $handle) = @_;
+            my ($chan, $msg) = @{$raw->{params}};
+            unless ($msg) {
                 return $need_more_params->($handle, 'NOTICE');
             }
             my $nick = $handle->{nick};
-            my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
-            my $raw = mk_msg($comment, 'NOTICE', $chan, $text) . $CRLF;
-            for my $handle (values %{$self->channels->{$chan}->{handles}}) {
-                $handle->push_write($raw);
-            }
-            $self->event('daemon_notice' => $nick, $chan, $text);
+            $self->_intern_notice($nick, $chan, $msg);
         },
     );
     return $self;
@@ -188,16 +187,7 @@ sub run {
             });
         });
         $self->handles->{fileno($fh)} = $handle;
-    }, sub {
-        # prepare cb
-        my ($fh, $thishost, $thisport) = @_;
-        $self->print_banner($thishost, $thisport);
-    };
-}
-
-sub print_banner {
-    my ($self, $host, $port) = @_;
-    print "@{[ ref $self ]} is ready on : $host:$port\n";
+    }, $self->prepared_cb();
 }
 
 sub handle_msg {
@@ -243,12 +233,23 @@ sub daemon_cmd_privmsg {
     $self->_intern_privmsg($nick, $chan, $msg);
 }
 
+sub daemon_cmd_notice {
+    my ($self, $nick, $chan, $msg) = @_;
+    $self->_intern_notice($nick, $chan, $msg);
+}
+
 # -------------------------------------------------------------------------
 
 sub _intern_privmsg {
     my ($self, $nick, $chan, $text) = @_;
     $self->_send_chan_msg($nick, $chan, 'PRIVMSG', $chan, $text);
     $self->event('daemon_privmsg' => $nick, $chan, $text);
+}
+
+sub _intern_notice {
+    my ($self, $nick, $chan, $text) = @_;
+    $self->_send_chan_msg($nick, $chan, 'notice', $chan, $text);
+    $self->event('daemon_notice' => $nick, $chan, $text);
 }
 
 sub _intern_topic {
