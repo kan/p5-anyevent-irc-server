@@ -94,8 +94,10 @@ test_tcp(
         $ircd->reg_cb(
             daemon_privmsg => sub {
                 my ($ircd, $nick, $chan, $text) = @_;
-                ok 1, 'privmsg callback!';
-                $ircd->daemon_cmd_privmsg('kan', '#foo', 'YEAAAAH!');
+                if ($text eq 'yo') {
+                    ok 1, 'privmsg callback!';
+                    $ircd->daemon_cmd_privmsg('kan', '#foo', 'YEAAAAH!');
+                }
             },
         );
         $ircd->run();

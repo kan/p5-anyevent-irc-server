@@ -116,21 +116,7 @@ sub new {
                 return $need_more_params->($handle, 'PRIVMSG');
             }
             my $nick = $handle->{nick};
-            my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
-            my $raw = mk_msg($comment, 'PRIVMSG', $chan, $text) . $CRLF;
-            if ($chan =~ /^[#&]/) {
-                for my $handle (values %{$self->channels->{$chan}->{handles}}) {
-                    $handle->push_write($raw);
-                }
-            } else {
-                # private talk
-                # TODO: TOO SLOW
-                my $handle = $self->nick2handle($chan);
-                if ($handle) {
-                    $handle->push_write($raw);
-                }
-            }
-            $self->event('daemon_privmsg' => $nick, $chan, $text);
+            $self->_intern_privmsg($nick, $chan, $text);
         },
         'notice' => sub {
             my ($irc, $msg, $handle) = @_;
@@ -211,15 +197,6 @@ sub handle_msg {
     $self->event($event, $msg, $handle);
 }
 
-sub send_privmsg {
-    my ($self, $nick, $chan, $msg) = @_;
-    my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
-    my $raw = mk_msg($comment, 'PRIVMSG', $chan, $msg) . $CRLF;
-    for my $handle (values %{$self->channels->{$chan}->{handles}}) {
-        $handle->push_write($raw);
-    }
-}
-
 # -------------------------------------------------------------------------
 
 sub add_spoofed_nick {
@@ -253,12 +230,29 @@ sub daemon_cmd_part {
 
 sub daemon_cmd_privmsg {
     my ($self, $nick, $chan, $msg) = @_;
-    for my $line (split /\r?\n/, $msg) {
-        $self->send_privmsg($nick, $chan, $line);
-    }
+    $self->_intern_privmsg($nick, $chan, $msg);
 }
 
 # -------------------------------------------------------------------------
+
+sub _intern_privmsg {
+    my ($self, $nick, $chan, $text) = @_;
+    my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+    my $raw = mk_msg($comment, 'PRIVMSG', $chan, $text) . $CRLF;
+    if ($chan =~ /^[#&]/) {
+        for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+            $handle->push_write($raw);
+        }
+    } else {
+        # private talk
+        # TODO: TOO SLOW
+        my $handle = $self->nick2handle($chan);
+        if ($handle) {
+            $handle->push_write($raw);
+        }
+    }
+    $self->event('daemon_privmsg' => $nick, $chan, $text);
+}
 
 sub _intern_topic {
     my ($self, $nick, $chan, $topic) = @_;
