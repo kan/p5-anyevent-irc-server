@@ -63,7 +63,10 @@ test_tcp(
         my $port = shift;
         my $cv = AE::cv();
 
-        my $ircd = AnyEvent::IRC::Server->new(port => $port);
+        my $ircd = AnyEvent::IRC::Server->new(
+            port         => $port,
+            'servername' => 'fushihara.anyevent.server.irc'
+        );
         $ircd->reg_cb(
             privmsg => sub {
                 my ($ircd, $msg, $handle) = @_;
