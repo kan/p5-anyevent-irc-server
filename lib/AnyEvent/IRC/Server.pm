@@ -248,7 +248,7 @@ sub _intern_privmsg {
 
 sub _intern_notice {
     my ($self, $nick, $chan, $text) = @_;
-    $self->_send_chan_msg($nick, $chan, 'notice', $chan, $text);
+    $self->_send_chan_msg($nick, $chan, 'NOTICE', $chan, $text);
     $self->event('daemon_notice' => $nick, $chan, $text);
 }
 
