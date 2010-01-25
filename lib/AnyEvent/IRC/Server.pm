@@ -10,7 +10,7 @@ use AnyEvent::IRC::Util qw/parse_irc_msg mk_msg/;
 use Sys::Hostname;
 use POSIX;
 
-__PACKAGE__->mk_accessors(qw/host port handles servername channels topics/);
+__PACKAGE__->mk_accessors(qw/host port handles servername channels topics spoofed_nick/);
 
 my $CRLF = "\015\012";
 
@@ -24,13 +24,14 @@ BEGIN {
 sub new {
     my $class = shift;
     my $self = $class->SUPER::new(
-        handles => {},
-        channels => {},
-        topics   => {},
-        welcome => 'Welcome to the my IRC server',
-        servername => hostname(),
-        network    => 'AnyEventIRCServer',
-        ctime      => POSIX::strftime('%Y-%m-%d %H:%M:%S', localtime()),
+        handles      => {},
+        channels     => {},
+        topics       => {},
+        spoofed_nick => {},
+        welcome      => 'Welcome to the my IRC server',
+        servername   => hostname(),
+        network      => 'AnyEventIRCServer',
+        ctime        => POSIX::strftime( '%Y-%m-%d %H:%M:%S', localtime() ),
         @_,
     );
 
@@ -85,21 +86,13 @@ sub new {
         },
         part => sub {
             my ($self, $msg, $handle) = @_;
-            my ($chans) = @{$msg->{params}};
+            my ($chans, $text) = @{$msg->{params}};
             unless ($chans) {
                 return $need_more_params->($handle, 'PART');
             }
             for my $chan ( split /,/, $chans ) {
                 my $nick = $handle->{nick};
-
-                # send part message
-                my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
-                my $raw = mk_msg($comment, 'PART', $chan) . $CRLF;
-                for my $handle (values %{$self->channels->{$chan}->{handles}}) {
-                    $handle->push_write($raw);
-                }
-                delete $self->channels->{$chan}->{handles}->{$nick};
-                $self->event('daemon_part' => $nick, $chan);
+                $self->_intern_part($nick, $chan, $text);
             }
         },
         topic => sub {
@@ -109,12 +102,12 @@ sub new {
                 return $need_more_params->($handle, 'TOPIC');
             }
             if ($topic) {
-                $self->topics->{$chan} = $topic;
                 $say->( $handle, RPL_TOPIC, $self->topics->{$chan} );
+                my $nick = $handle->{nick};
+                $self->_intern_topic($nick, $chan, $topic);
             } else {
                 $say->( $handle, RPL_NOTOPIC, $chan, 'No topic is set' );
             }
-            $self->_send_chan_msg($handle, $chan, 'TOPIC', $chan, $self->topics->{$chan});
         },
         'privmsg' => sub {
             my ($irc, $msg, $handle) = @_;
@@ -122,16 +115,55 @@ sub new {
             unless ($chan) {
                 return $need_more_params->($handle, 'PRIVMSG');
             }
-            $self->event('daemon_privmsg' => $chan, $text);
+            my $nick = $handle->{nick};
+            my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+            my $raw = mk_msg($comment, 'PRIVMSG', $chan, $text) . $CRLF;
+            if ($chan =~ /^[#&]/) {
+                for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+                    $handle->push_write($raw);
+                }
+            } else {
+                # private talk
+                # TODO: TOO SLOW
+                my $handle = $self->nick2handle($chan);
+                if ($handle) {
+                    $handle->push_write($raw);
+                }
+            }
+            $self->event('daemon_privmsg' => $nick, $chan, $text);
+        },
+        'notice' => sub {
+            my ($irc, $msg, $handle) = @_;
+            my ($chan, $text) = @{$msg->{params}};
+            unless ($chan) {
+                return $need_more_params->($handle, 'NOTICE');
+            }
+            my $nick = $handle->{nick};
+            my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+            my $raw = mk_msg($comment, 'NOTICE', $chan, $text) . $CRLF;
+            for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+                $handle->push_write($raw);
+            }
+            $self->event('daemon_notice' => $nick, $chan, $text);
         },
     );
     return $self;
 }
 
+# TODO: This function is really sucks.Too slow.
+sub nick2handle {
+    my ($self, $nick) = @_;
+    for my $handle (values %{$self->{handles}}) {
+        if ($handle->{nick} eq $nick) {
+            return $handle;
+        }
+    }
+    return;
+}
+
 sub _send_chan_msg {
-    my ($self, $handle, $chan, @args) = @_;
+    my ($self, $nick, $chan, @args) = @_;
     # send join message
-    my $nick = $handle->{nick};
     my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
     my $raw = mk_msg($comment, @args) . $CRLF;
     for my $handle (values %{$self->channels->{$chan}->{handles}}) {
@@ -190,10 +222,33 @@ sub send_privmsg {
 
 # -------------------------------------------------------------------------
 
+sub add_spoofed_nick {
+    my ($self, $nick) = @_;
+    $self->{spoofed_nick}->{$nick} = 1;
+}
+
+
+# -------------------------------------------------------------------------
+
 sub daemon_cmd_join {
     my ($self, $nick, $chan) = @_;
-    # TODO
+    # TODO: implement
     $self->event('daemon_join' => $nick, $chan);
+}
+
+sub daemon_cmd_kick {
+    my ($self, $kicker, $chan, $kickee, $comment) = @_;
+    $self->_intern_kick($kicker, $chan, $kickee, $comment);
+}
+
+sub daemon_cmd_topic {
+    my ($self, $nick, $chan, $topic) = @_;
+    $self->_intern_topic($nick, $chan, $topic);
+}
+
+sub daemon_cmd_part {
+    my ($self, $nick, $chan, $msg) = @_;
+    $self->_intern_part($nick, $chan, $msg);
 }
 
 sub daemon_cmd_privmsg {
@@ -201,6 +256,45 @@ sub daemon_cmd_privmsg {
     for my $line (split /\r?\n/, $msg) {
         $self->send_privmsg($nick, $chan, $line);
     }
+}
+
+# -------------------------------------------------------------------------
+
+sub _intern_topic {
+    my ($self, $nick, $chan, $topic) = @_;
+    $self->topics->{$chan} = $topic;
+    $self->_send_chan_msg($nick, $chan, 'TOPIC', $chan, $self->topics->{$chan});
+    $self->event('daemon_topic' => $nick, $chan, $topic);
+}
+
+sub _intern_part {
+    my ($self, $nick, $chan, $msg) = @_;
+    $msg ||= $nick;
+
+    # send part message
+#   my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+    $self->_send_chan_msg($nick, $chan, 'PART', $chan, $msg);
+#   my $raw = mk_msg($comment, 'PART', $chan, $msg) . $CRLF;
+#   for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+#       $handle->push_write($raw);
+#   }
+    delete $self->channels->{$chan}->{handles}->{$nick};
+    $self->event('daemon_part' => $nick, $chan);
+}
+
+# /KICK <channel> <user> [<comment>]
+sub _intern_kick {
+    my ($self, $kicker, $chan, $kickee, $comment) = @_;
+
+    # TODO: implement
+    # TODO: oper check
+    my $cmt_irc = sprintf '%s!~%s@%s', $kicker, $kicker, $self->servername;
+    my $raw = mk_msg($cmt_irc, 'KICK', $chan, $kickee, $comment) . $CRLF;
+    for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+        $handle->push_write($raw);
+    }
+    delete $self->channels->{$chan}->{handles}->{$kickee};
+    $self->event('daemon_kick' => $kicker, $chan, $kickee, $comment);
 }
 
 1;
@@ -232,6 +326,7 @@ AnyEvent::IRC::Server is
 
     - useful for public irc server
     -- anti flooder
+    -- limit nick length
 
 =head1 AUTHOR
 
