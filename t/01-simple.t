@@ -12,6 +12,31 @@ test_tcp(
         my $cv = AE::cv();
         my $cv_join = AE::cv();
 
+        my @callbacks = (
+            sub {
+                my ($channel, $raw) = @_;
+                my $who          = $raw->{prefix} || '*';
+                my $channel_name = $raw->{params}->[0];
+                my $msg          = $raw->{params}->[1];
+                my $command      = $raw->{command};
+                is $channel, '#foo';
+                is $command, 'PRIVMSG';
+                is $who, 'testbot!~testbot@fushihara.anyevent.server.irc';
+                is $msg, 'yo', 'publicmsg';
+            },
+            sub {
+                my ($channel, $raw) = @_;
+                my $who          = $raw->{prefix} || '*';
+                my $channel_name = $raw->{params}->[0];
+                my $msg          = $raw->{params}->[1];
+                my $command      = $raw->{command};
+                is $channel, '#foo';
+                is $command, 'PRIVMSG';
+                is $who, 'kan!~kan@fushihara.anyevent.server.irc';
+                is $msg, 'YEAAAAH!', 'publicmsg';
+            },
+        );
+
         my $irc = AnyEvent::IRC::Client->new();
         $irc->reg_cb(
             'irc_001' => sub {
@@ -26,17 +51,16 @@ test_tcp(
             sent => sub {
                 ok 1, 'sentsrv';
             },
+            'irc_privmsg' => sub {
+                # use Data::Dumper; warn Dumper($_[1]);
+            },
             'publicmsg' => sub {
                 my ($irc, $channel, $raw) = @_;
-                my $who          = $raw->{prefix} || '*';
-                my $channel_name = $raw->{params}->[0];
-                my $msg          = $raw->{params}->[1];
-                my $command      = $raw->{command};
-                is $channel, '#foo';
-                is $command, 'PRIVMSG';
-                is $who, 'kan!~kan@fushihara.anyevent.server.irc';
-                is $msg, 'YEAAAAH!', 'publicmsg';
-                $cv->send();
+                my $cb = shift @callbacks;
+                $cb->($channel, $raw);
+                if (scalar(@callbacks) == 0) {
+                    $cv->send();
+                }
             },
             'join' => sub {
                 ok 1, 'join event';
@@ -68,10 +92,10 @@ test_tcp(
             'servername' => 'fushihara.anyevent.server.irc'
         );
         $ircd->reg_cb(
-            privmsg => sub {
-                my ($ircd, $msg, $handle) = @_;
+            daemon_privmsg => sub {
+                my ($ircd, $nick, $chan, $text) = @_;
                 ok 1, 'privmsg callback!';
-                $ircd->send_privmsg('kan', '#foo', 'YEAAAAH!');
+                $ircd->daemon_cmd_privmsg('kan', '#foo', 'YEAAAAH!');
             },
         );
         $ircd->run();
@@ -79,3 +103,4 @@ test_tcp(
         $cv->recv();
     },
 );
+
