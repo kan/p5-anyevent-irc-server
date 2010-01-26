@@ -6,7 +6,7 @@ use Test::TCP;
 use AnyEvent::IRC::Server;
 use AE;
 
-plan tests => 7;
+plan tests => 8;
 
 my $port = empty_port();
 
@@ -27,6 +27,7 @@ $ircd->reg_cb(
             ok 1, 'privmsg callback!';
             $ircd->daemon_cmd_notice('kan', '#foo', 'YEAAAAH!');
         }
+        isnt $text, 'YEAAAAH!';
     },
 );
 $ircd->run();

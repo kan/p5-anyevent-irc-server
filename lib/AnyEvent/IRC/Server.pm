@@ -98,6 +98,7 @@ sub new {
             for my $chan ( split /,/, $chans ) {
                 my $nick = $handle->{nick};
                 $self->_intern_part($nick, $chan, $text);
+                $self->event('daemon_part' => $nick, $chan);
             }
         },
         topic => sub {
@@ -110,6 +111,7 @@ sub new {
                 $say->( $handle, RPL_TOPIC, $self->topics->{$chan} );
                 my $nick = $handle->{nick};
                 $self->_intern_topic($nick, $chan, $topic);
+                $self->event('daemon_topic' => $nick, $chan, $topic);
             } else {
                 $say->( $handle, RPL_NOTOPIC, $chan, 'No topic is set' );
             }
@@ -132,6 +134,7 @@ sub new {
             }
             my $nick = $handle->{nick};
             $self->_intern_notice($nick, $chan, $msg);
+            $self->event('daemon_notice' => $nick, $chan, $msg);
         },
     );
     return $self;
@@ -249,14 +252,12 @@ sub _intern_privmsg {
 sub _intern_notice {
     my ($self, $nick, $chan, $text) = @_;
     $self->_send_chan_msg($nick, $chan, 'NOTICE', $chan, $text);
-    $self->event('daemon_notice' => $nick, $chan, $text);
 }
 
 sub _intern_topic {
     my ($self, $nick, $chan, $topic) = @_;
     $self->topics->{$chan} = $topic;
     $self->_send_chan_msg($nick, $chan, 'TOPIC', $chan, $self->topics->{$chan});
-    $self->event('daemon_topic' => $nick, $chan, $topic);
 }
 
 sub _intern_part {
@@ -266,10 +267,10 @@ sub _intern_part {
     # send part message
     $self->_send_chan_msg($nick, $chan, 'PART', $chan, $msg);
     delete $self->channels->{$chan}->{handles}->{$nick};
-    $self->event('daemon_part' => $nick, $chan);
 }
 
 # /KICK <channel> <user> [<comment>]
+# use this line in /kick: $self->event('daemon_kick' => $kicker, $chan, $kickee, $comment);
 sub _intern_kick {
     my ($self, $kicker, $chan, $kickee, $comment) = @_;
 
@@ -281,7 +282,6 @@ sub _intern_kick {
         $handle->push_write($raw);
     }
     delete $self->channels->{$chan}->{handles}->{$kickee};
-    $self->event('daemon_kick' => $kicker, $chan, $kickee, $comment);
 }
 
 # -------------------------------------------------------------------------
