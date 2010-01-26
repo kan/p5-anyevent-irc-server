@@ -16,4 +16,6 @@ my $ircd = AnyEvent::IRC::Server->new(
 );
 $ircd->run();
 
+print "irc server is ready in irc://0:$port/\n";
+
 AE::cv->recv();
