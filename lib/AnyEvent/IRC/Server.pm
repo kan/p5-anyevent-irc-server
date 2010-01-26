@@ -309,17 +309,16 @@ AnyEvent::IRC::Server is
 
 =head1 ROADMAP
 
-    - useful for testing
-    -- support /kick
-    -- mode support
-    -- who support
-
     - useful for XIRCD
     -- authentication
 
     - useful for public irc server
     -- anti flooder
     -- limit nick length
+    -- detect nick colision
+    -- support /kick
+    -- mode support
+    -- who support
 
 =head1 AUTHOR
 
