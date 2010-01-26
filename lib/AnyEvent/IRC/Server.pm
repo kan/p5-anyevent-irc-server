@@ -122,6 +122,7 @@ sub new {
             }
             my $nick = $handle->{nick};
             $self->_intern_privmsg($nick, $chan, $text);
+            $self->event('daemon_privmsg' => $nick, $chan, $text);
         },
         'notice' => sub {
             my ($irc, $raw, $handle) = @_;
@@ -243,7 +244,6 @@ sub daemon_cmd_notice {
 sub _intern_privmsg {
     my ($self, $nick, $chan, $text) = @_;
     $self->_send_chan_msg($nick, $chan, 'PRIVMSG', $chan, $text);
-    $self->event('daemon_privmsg' => $nick, $chan, $text);
 }
 
 sub _intern_notice {
@@ -311,8 +311,6 @@ AnyEvent::IRC::Server is
 
     - useful for testing
     -- support /kick
-    -- notice support
-    -- part support
     -- mode support
     -- who support
 
