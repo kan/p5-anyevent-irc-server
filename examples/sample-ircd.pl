@@ -5,6 +5,8 @@ use AE;
 use AnyEvent::IRC::Server;
 use Getopt::Long;
 
+$|++; # do not buffering stdout
+
 my $port = 6667;
 
 GetOptions(
