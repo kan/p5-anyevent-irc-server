@@ -136,6 +136,11 @@ sub new {
             $self->_intern_notice($nick, $chan, $msg);
             $self->event('daemon_notice' => $nick, $chan, $msg);
         },
+        'list' => sub {
+            my ($irc, $raw, $handle) = @_;
+            my ($chans, $msg) = @{$raw->{params}};
+            $self->_intern_list($handle, $chans);
+        },
     );
     return $self;
 }
@@ -151,10 +156,15 @@ sub nick2handle {
     return;
 }
 
+sub _server_comment {
+    my ($self, $nick) = @_;
+    return sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+}
+
 sub _send_chan_msg {
     my ($self, $nick, $chan, @args) = @_;
     # send join message
-    my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+    my $comment = $self->_server_comment($nick);
     my $raw = mk_msg($comment, @args) . $CRLF;
     if ($self->is_channel_name($chan)) {
         for my $handle (values %{$self->channels->{$chan}->{handles}}) {
@@ -243,6 +253,35 @@ sub daemon_cmd_notice {
 }
 
 # -------------------------------------------------------------------------
+
+sub _intern_list {
+    my ($self, $handle, $chans) = @_;
+
+    my $nick = $handle->{nick};
+    my $comment = $self->_server_comment($nick);
+    my $send = sub {
+        my $raw = mk_msg($comment, @_) . $CRLF;
+        $handle->push_write($raw);
+    };
+    my $send_rpl_list = sub {
+        my $chan = shift;
+        $send->(RPL_LIST, $nick, $chan, scalar keys %{$self->channels->{$chan}->{handles}},  ':'.($self->topics->{$chan} || ''));
+    };
+    $send->(RPL_LISTSTART, $nick, 'Channel', ':Users', 'Name');
+    if ($chans) {
+        for my $chan (split /,/, $chans) {
+            if ($self->channels->{$chan}) {
+                $send_rpl_list->($chan);
+            }
+        }
+    } else {
+        my $channels = $self->channels;
+        while (my ($chan, $val) = each %$channels) {
+            $send_rpl_list->($chan);
+        }
+    }
+    $send->(RPL_LISTEND, $nick, 'End of /LIST');
+}
 
 sub _intern_privmsg {
     my ($self, $nick, $chan, $text) = @_;
