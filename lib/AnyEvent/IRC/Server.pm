@@ -60,6 +60,12 @@ sub new {
         },
         user => sub {
             my ($self, $msg, $handle) = @_;
+            my ($user, $host, $server, $realname) = @{$msg->{params}};
+            $handle->{user} = $user;
+            $handle->{hostname} = $host;
+            $handle->{servername} = $server;
+            $handle->{realname} = $realname;
+
             $say->( $handle, RPL_WELCOME(), $self->{welcome} );
             $say->( $handle, RPL_YOURHOST(), "Your host is @{[ $self->servername ]} [@{[ $self->servername ]}/@{[ $self->port ]}]. @{[ ref $self ]}/$VERSION" ); # 002
             $say->( $handle, RPL_CREATED(), "This server was created $self->{ctime}");
@@ -81,7 +87,7 @@ sub new {
                 $say->( $handle, RPL_NAMREPLY(), $chan, "duke" ); # TODO
 
                 # send join message
-                my $comment = sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
+                my $comment = sprintf '%s!%s@%s', $nick, $handle->{user}, $handle->{servername};
                 my $raw = mk_msg($comment, 'JOIN', $chan) . $CRLF;
                 for my $handle (values %{$self->channels->{$chan}->{handles}}) {
                     $handle->push_write($raw);
@@ -141,6 +147,19 @@ sub new {
             my ($chans, $msg) = @{$raw->{params}};
             $self->_intern_list($handle, $chans);
         },
+        who => sub {
+            my ($irc, $msg, $handle) = @_;
+            my ($name) = @{$msg->{params}};
+
+             unless ( $self->channels->{$name} ) {
+                return $need_more_params->($handle, 'WHO'); # TODO
+             }
+
+             for my $handle (values %{$self->channels->{$name}->{handles}}) {
+                $say->( $handle, RPL_WHOREPLY(), $name, $handle->{user}, $handle->{hostname}, $handle->{servername}, $handle->{nick},"H:1", $handle->{realname});
+                $say->( $handle, RPL_ENDOFWHO(), 'END of /WHO list');
+             }
+        },
     );
     return $self;
 }
@@ -164,7 +183,8 @@ sub _server_comment {
 sub _send_chan_msg {
     my ($self, $nick, $chan, @args) = @_;
     # send join message
-    my $comment = $self->_server_comment($nick);
+    my $h = $self->channels->{$chan}->{handles}->{$nick};
+    my $comment = sprintf '%s!%s@%s', $nick, $h->{user}, $h->{servername};
     my $raw = mk_msg($comment, @args) . $CRLF;
     if ($self->is_channel_name($chan)) {
         for my $handle (values %{$self->channels->{$chan}->{handles}}) {
@@ -315,7 +335,8 @@ sub _intern_kick {
 
     # TODO: implement
     # TODO: oper check
-    my $cmt_irc = sprintf '%s!~%s@%s', $kicker, $kicker, $self->servername;
+    my $h = $self->channels->{$chan}->{handles}->{$kicker};
+    my $cmt_irc = sprintf '%s!%s@%s', $kicker, $h->{user}, $h->{servername};
     my $raw = mk_msg($cmt_irc, 'KICK', $chan, $kickee, $comment) . $CRLF;
     for my $handle (values %{$self->channels->{$chan}->{handles}}) {
         $handle->push_write($raw);
