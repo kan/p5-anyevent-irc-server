@@ -206,8 +206,12 @@ sub run {
         my ($fh, $host, $port) = @_;
         my $handle = AnyEvent::Handle->new(
             on_error => sub {
+                my ($handle) = @_;
+                $self->event('on_error' => $handle);
             },
             on_eof => sub {
+                my ($handle) = @_;
+                $self->event('on_eof' => $handle);
             },
             fh => $fh,
         );
