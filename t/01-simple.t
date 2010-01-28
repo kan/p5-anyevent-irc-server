@@ -34,7 +34,7 @@ test_tcp(
                 note 'test2';
                 is $channel, '#foo';
                 is $command, 'PRIVMSG';
-                is $who, 'kan!~kan@fushihara.anyevent.server.irc';
+                is $who, 'kan!kan@fushihara.anyevent.server.irc';
                 is $msg, 'YEAAAAH!', 'publicmsg';
             },
         );

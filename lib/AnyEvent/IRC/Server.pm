@@ -87,7 +87,8 @@ sub new {
                 $say->( $handle, RPL_NAMREPLY(), $chan, "duke" ); # TODO
 
                 # send join message
-                my $comment = sprintf '%s!%s@%s', $nick, $handle->{user}, $handle->{servername};
+                my $comment = sprintf '%s!%s@%s', $nick, $nick, $self->servername;
+                # my $comment = sprintf '%s!%s@%s', $nick, $handle->{user}, $handle->{servername};
                 my $raw = mk_msg($comment, 'JOIN', $chan) . $CRLF;
                 for my $handle (values %{$self->channels->{$chan}->{handles}}) {
                     $handle->push_write($raw);
@@ -155,10 +156,8 @@ sub new {
                 return $need_more_params->($handle, 'WHO'); # TODO
              }
 
-             for my $handle (values %{$self->channels->{$name}->{handles}}) {
-                $say->( $handle, RPL_WHOREPLY(), $name, $handle->{user}, $handle->{hostname}, $handle->{servername}, $handle->{nick},"H:1", $handle->{realname});
-                $say->( $handle, RPL_ENDOFWHO(), 'END of /WHO list');
-             }
+            $say->( $handle, RPL_WHOREPLY(), $name, $handle->{user}, $handle->{hostname}, $handle->{servername}, $handle->{nick},"H:1", $handle->{realname});
+            $say->( $handle, RPL_ENDOFWHO(), 'END of /WHO list');
         },
     );
     return $self;
@@ -183,8 +182,8 @@ sub _server_comment {
 sub _send_chan_msg {
     my ($self, $nick, $chan, @args) = @_;
     # send join message
-    my $h = $self->channels->{$chan}->{handles}->{$nick};
-    my $comment = sprintf '%s!%s@%s', $nick, $h->{user}, $h->{servername};
+    my $handle = $self->channels->{$chan}->{handles}->{$nick};
+    my $comment = sprintf '%s!%s@%s', $nick, $handle->{user} || $nick, $handle->{servername} || $self->servername;
     my $raw = mk_msg($comment, @args) . $CRLF;
     if ($self->is_channel_name($chan)) {
         for my $handle (values %{$self->channels->{$chan}->{handles}}) {
@@ -243,8 +242,7 @@ sub add_spoofed_nick {
 
 sub daemon_cmd_join {
     my ($self, $nick, $chan) = @_;
-    # TODO: implement
-    $self->event('daemon_join' => $nick, $chan);
+    # TODO: send '/join' to each channel.
 }
 
 sub daemon_cmd_kick {
@@ -335,8 +333,8 @@ sub _intern_kick {
 
     # TODO: implement
     # TODO: oper check
-    my $h = $self->channels->{$chan}->{handles}->{$kicker};
-    my $cmt_irc = sprintf '%s!%s@%s', $kicker, $h->{user}, $h->{servername};
+    my $handle = $self->channels->{$chan}->{handles}->{$kicker};
+    my $cmt_irc = sprintf '%s!%s@%s', $kicker, $handle->{user} || $kicker , $handle->{servername} || $self->servername;
     my $raw = mk_msg($cmt_irc, 'KICK', $chan, $kickee, $comment) . $CRLF;
     for my $handle (values %{$self->channels->{$chan}->{handles}}) {
         $handle->push_write($raw);

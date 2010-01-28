@@ -8,6 +8,7 @@ use AnyEvent::IRC::Client;
 use Test::More;
 use AnyEvent::IRC::Util qw/encode_ctcp/;
 use Encode qw/decode_utf8/;
+use Data::Dumper;
 
 sub U ($) { decode_utf8(@_) }
 
@@ -54,7 +55,7 @@ my @TESTCASES = (
     {
         'params'  => [ '#foo' ],
         'command' => 'JOIN',
-        'prefix'  => 'john!~john@simple.poco.server.irc'
+        'prefix'  => 'john!john@simple.poco.server.irc'
     },
     {
         'params'  => [ 'john', '#finished' ],
@@ -69,67 +70,111 @@ my @TESTCASES = (
     {
         'params'  => [ '#finished' ],
         'command' => 'JOIN',
-        'prefix'  => 'john!~john@simple.poco.server.irc'
+        'prefix'  => 'john!john@simple.poco.server.irc'
     },
     {
         'params'  => [ '#foo' ],
         'command' => 'JOIN',
-        'prefix'  => 'tester!~tester@simple.poco.server.irc'
+        'prefix'  => 'tester!tester@simple.poco.server.irc'
+    },
+    {
+        'params' => [
+                        'john',
+                        '#foo',
+                        'john',
+                        '*',
+                        '0',
+                        'john',
+                        'H:1',
+                        'john'
+                    ],
+        'command' => '352', # RPL_WHOREPLY
+        'prefix' => undef
+    },
+    {
+      'params' => [
+                    'john',
+                    'END of /WHO list'
+                  ],
+      'command' => '315', # RPL_ENDOFWHO
+      'prefix' => undef
+    },
+    {
+       'params' => [
+                     'john',
+                     '#finished',
+                     'john',
+                     '*',
+                     '0',
+                     'john',
+                     'H:1',
+                     'john'
+                   ],
+       'command' => '352', # RPL_WHOREPLY
+       'prefix' => undef
+    }, 
+    {
+      'params' => [
+                    'john',
+                    'END of /WHO list'
+                  ],
+      'command' => '315', # RPL_ENDOFWHO
+      'prefix' => undef
     },
     {
         'params'  => [ 'john', 'PRIVATE TALK' ],
         'command' => 'PRIVMSG',
-        'prefix'  => 'tester!~tester@simple.poco.server.irc'
+        'prefix'  => 'tester!tester@simple.poco.server.irc'
     },
     {
         'params'  => [ '#foo', 'THIS IS PRIVMSG' ],
         'command' => 'PRIVMSG',
-        'prefix'  => 'tester!~tester@simple.poco.server.irc'
+        'prefix'  => 'tester!tester@simple.poco.server.irc'
     },
     {
         'params'  => [ '#foo', 'THIS IS NOTICE' ],
         'command' => 'NOTICE',
-        'prefix'  => 'tester!~tester@simple.poco.server.irc'
+        'prefix'  => 'tester!tester@simple.poco.server.irc'
     },
     {
         'params'  => [ '#foo', 'THIS IS にほんご' ],
         'command' => 'PRIVMSG',
-        'prefix' => 'tester!~tester@simple.poco.server.irc'
+        'prefix' => 'tester!tester@simple.poco.server.irc'
     },
     {
         'params'  => [ '#foo', "\x01ACTION too\x01" ],
         'command' => 'PRIVMSG',
-        'prefix'  => 'tester!~tester@simple.poco.server.irc'
+        'prefix'  => 'tester!tester@simple.poco.server.irc'
     },
     {
         'params'  => [ '#foo', 'DNBK' ],
         'command' => 'PRIVMSG',
-        'prefix'  => 'tester!~tester@simple.poco.server.irc'
+        'prefix'  => 'tester!tester@simple.poco.server.irc'
     },
     {
         'params'  => [ '#foo', 'kan' ],
         'command' => 'KICK',
-        'prefix'  => 'SERVER!~SERVER@simple.poco.server.irc'
+        'prefix'  => 'SERVER!SERVER@simple.poco.server.irc'
     },
     {
         'params'  => [ '#foo', '*** is GOD' ],
         'command' => 'TOPIC',
-        'prefix'  => 'SERVER!~SERVER@simple.poco.server.irc'
+        'prefix'  => 'SERVER!SERVER@simple.poco.server.irc'
     },
     {
         'params'  => [ '#foo', 'parter' ],
         'command' => 'PART',
-        'prefix'  => 'parter!~parter@simple.poco.server.irc'
+        'prefix'  => 'parter!parter@simple.poco.server.irc'
     },
     {
         'params'  => [ '#finished' ],
         'command' => 'JOIN',
-        'prefix'  => 'tester!~tester@simple.poco.server.irc'
+        'prefix'  => 'tester!tester@simple.poco.server.irc'
     },
     {
         'params'  => [ '#finished', 'FINISHED!' ],
         'command' => 'PRIVMSG',
-        'prefix'  => 'tester!~tester@simple.poco.server.irc'
+        'prefix'  => 'tester!tester@simple.poco.server.irc'
     }
 );
 
@@ -192,8 +237,13 @@ test_tcp(
                 );
             },
             'irc_*' => sub {
+                my ($irc, $raw) = @_;
                 my $expected = shift @TESTCASES or die "hmm... test cases are not enough";
-                is_deeply $_[1], $expected;
+                my $msg = $raw->{command} . ' : ' . join(", ", @{$raw->{params}}) . ' == ' .  join(", ", @{$expected->{params}});
+                is_deeply $raw, $expected, $msg;
+                if ($raw->{command} ne $expected->{command}) {
+                    diag Dumper($raw);
+                }
             },
             publicmsg => sub {
                 my ($irc, $channel, $raw) = @_;
