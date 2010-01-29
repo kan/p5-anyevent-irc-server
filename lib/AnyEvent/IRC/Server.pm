@@ -9,8 +9,9 @@ use AnyEvent::Socket;
 use AnyEvent::IRC::Util qw/parse_irc_msg mk_msg/;
 use Sys::Hostname;
 use POSIX;
+use Scalar::Util qw/refaddr/;
 
-__PACKAGE__->mk_accessors(qw/host port handles servername channels topics spoofed_nick prepared_cb/);
+__PACKAGE__->mk_accessors(qw/host port handles servername channels topics spoofed_nick prepared_cb nick2handle/);
 
 my $CRLF = "\015\012";
 
@@ -24,10 +25,11 @@ BEGIN {
 sub new {
     my $class = shift;
     my $self = $class->SUPER::new(
-        handles      => {},
+        handles      => {}, # refaddr($handle) => $handle
         channels     => {},
         topics       => {},
         spoofed_nick => {},
+        nick2handle  => {}, # $nick => $hanldle,
         welcome      => 'Welcome to the my IRC server',
         servername   => hostname(),
         network      => 'AnyEventIRCServer',
@@ -56,11 +58,17 @@ sub new {
             unless ($nick) {
                 return $need_more_params->($handle, 'NICK');
             }
+            if ($self->nick2handle->{$nick}) {
+                return $say->($handle, ERR_NICKNAMEINUSE, $nick, 'Nickname already in use');
+            }
             $handle->{nick} = $nick;
+            $self->nick2handle->{$nick} = $handle;
+            # TODO: broadcast to each user
         },
         user => sub {
             my ($self, $msg, $handle) = @_;
             my ($user, $host, $server, $realname) = @{$msg->{params}};
+            # TODO: Note that hostname and servername are normally ignored by the IRC server when the USER command comes from a directly connected client (for security reasons)
             $handle->{user} = $user;
             $handle->{hostname} = $host;
             $handle->{servername} = $server;
@@ -163,17 +171,6 @@ sub new {
     return $self;
 }
 
-# TODO: This function is really sucks.Too slow.
-sub nick2handle {
-    my ($self, $nick) = @_;
-    for my $handle (values %{$self->{handles}}) {
-        if ($handle->{nick} eq $nick) {
-            return $handle;
-        }
-    }
-    return;
-}
-
 sub _server_comment {
     my ($self, $nick) = @_;
     return sprintf '%s!~%s@%s', $nick, $nick, $self->servername;
@@ -193,7 +190,7 @@ sub _send_chan_msg {
     } else {
         # private talk
         # TODO: TOO SLOW
-        my $handle = $self->nick2handle($chan);
+        my $handle = $self->nick2handle->{$chan};
         if ($handle) {
             $handle->push_write($raw);
         }
@@ -212,6 +209,11 @@ sub run {
             on_eof => sub {
                 my ($handle) = @_;
                 $self->event('on_eof' => $handle);
+                # TODO: part from each channel
+                if (my $nick = $handle->{nick}) {
+                    delete $self->nick2handle->{$nick};
+                }
+                delete $self->handles->{refaddr($handle)};
             },
             fh => $fh,
         );
@@ -223,7 +225,7 @@ sub run {
                 $self->handle_msg($msg, $handle);
             });
         });
-        $self->handles->{fileno($fh)} = $handle;
+        $self->handles->{refaddr($handle)} = $handle;
     }, $self->prepared_cb();
 }
 

@@ -23,8 +23,10 @@ sub conn {
         $sock->autoflush(1);
         $sock->timeout(3);
         my $self = bless {sock => $sock,}, $class;
-        $self->send_srv('nick' => $args{nick});
-        $self->send_srv('user' => $args{user} || $args{nick}, '0', '*', $args{real}||$args{user});
+        if ($args{nick}) {
+            $self->send_srv('nick' => $args{nick});
+            $self->send_srv('user' => $args{user} || $args{nick}, '0', '*', $args{real}||$args{user});
+        }
         return $self;
     }
     sub send_srv {
@@ -43,10 +45,15 @@ sub conn {
     }
     sub is_response {
         my ($self, $expected) = @_;
+        my $got = $self->getline();
+        is $got, $expected, $expected;
+    }
+    sub getline {
+        my ($self, $expected) = @_;
         my $fh = $self->{sock};
         my $got = <$fh>;
         $got =~ s/[\r\n]+$//;
-        is $got, $expected, $expected;
+        return $got;
     }
 }
 
