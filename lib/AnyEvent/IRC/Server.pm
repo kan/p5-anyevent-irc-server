@@ -247,8 +247,8 @@ sub add_spoofed_nick {
 # -------------------------------------------------------------------------
 
 sub daemon_cmd_join {
-    my ($self, $nick, $chan) = @_;
-    # TODO: send '/join' to each channel.
+    my ($self, $nick, $chan, $msg, $handle) = @_;
+    $self->_intern_join($nick, $chan, $handle);
 }
 
 sub daemon_cmd_kick {
@@ -321,6 +321,12 @@ sub _intern_topic {
     my ($self, $nick, $chan, $topic) = @_;
     $self->topics->{$chan} = $topic;
     $self->_send_chan_msg($nick, $chan, 'TOPIC', $chan, $self->topics->{$chan});
+}
+
+sub _intern_join {
+    my ($self, $nick, $chan, $handle) = @_;
+    $self->channels->{$chan}->{handles}->{$nick} = $handle;
+    $self->_send_chan_msg($nick, $chan, 'JOIN', $chan);
 }
 
 sub _intern_part {
