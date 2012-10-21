@@ -14,7 +14,7 @@ GetOptions(
 );
 
 my $ircd = AnyEvent::IRC::Server->new(
-    host         => '192.168.186.128',
+    host         => '127.0.0.1',
     port         => $port,
     'servername' => 'localhost'
 );
