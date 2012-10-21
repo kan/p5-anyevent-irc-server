@@ -367,7 +367,7 @@ __END__
 
 =head1 NAME
 
-AnyEvent::IRC::Server -
+AnyEvent::IRC::Server - An event based IRC protocol server API
 
 =head1 SYNOPSIS
 
