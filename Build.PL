@@ -9,12 +9,14 @@ my $build = Module::Build->new(
     build_requires       => {
         'Test::More' => '0.98',
         'Test::Requires' => 0,
+        'Test::TCP'      => 0,
     },
     configure_requires   => { 'Module::Build' => '0.38' },
     requires => {
         perl => '5.010001',
         'AnyEvent::IRC'    => '0',
         'Object::Event'    => '0',
+        'Class::Accessor::Fast' => '0',
       },
 
     no_index    => { 'directory' => [ 'inc' ] },
