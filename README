@@ -1,27 +1,31 @@
-This is Perl module AnyEvent::IRC::Server.
+NAME
+    AnyEvent::IRC::Server - An event based IRC protocol server API
 
-INSTALLATION
+SYNOPSIS
+      use AnyEvent::IRC::Server;
 
-AnyEvent::IRC::Server installation is straightforward. If your CPAN shell is set up,
-you should just be able to do
+DESCRIPTION
+    AnyEvent::IRC::Server is
 
-    % cpan AnyEvent::IRC::Server
+ROADMAP
+        - useful for XIRCD
+        -- authentication
 
-Download it, unpack it, then build it as per the usual:
+        - useful for public irc server
+        -- anti flooder
+        -- limit nick length
+        -- detect nick colision
+        -- support /kick
+        -- mode support
+        -- who support
 
-    % perl Makefile.PL
-    % make && make test
+AUTHOR
+    Kan Fushihara <default {at} example.com>
 
-Then install it:
+    Tokuhiro Matsuno
 
-    % make install
+SEE ALSO
+LICENSE
+    This library is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
 
-DOCUMENTATION
-
-AnyEvent::IRC::Server documentation is available as in POD. So you can do:
-
-    % perldoc AnyEvent::IRC::Server
-
-to read the documentation online with your favorite pager.
-
-Default Name

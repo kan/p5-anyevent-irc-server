@@ -6,7 +6,10 @@ examples/proxy.pl
 examples/sample-ircd.pl
 examples/twitter.pl
 lib/AnyEvent/IRC/Server.pm
+LICENSE
 MANIFEST			This list of files
+META.json
+META.yml
 README
 t/00_compile.t
 t/01-simple.t
