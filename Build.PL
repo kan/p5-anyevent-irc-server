@@ -1,24 +1,16 @@
 use strict;
 use warnings;
-use Module::Build;
+use Module::Build::Pluggable (
+    'CPANfile'
+);
 
-my $build = Module::Build->new(
+my $build = Module::Build::Pluggable->new(
     license              => 'perl',
     dynamic_config       => 0,
 
-    build_requires       => {
-        'Test::More' => '0.98',
-        'Test::Requires' => 0,
-        'Test::TCP'      => 0,
+    requires             => {
+        perl => '5.008005',
     },
-    configure_requires   => { 'Module::Build' => '0.38' },
-    requires => {
-        perl => '5.010001',
-        'AnyEvent::IRC'    => '0',
-        'Object::Event'    => '0',
-        'Class::Accessor::Fast' => '0',
-      },
-
     no_index    => { 'directory' => [ 'inc' ] },
     name        => 'AnyEvent::IRC::Server',
     module_name => 'AnyEvent::IRC::Server',

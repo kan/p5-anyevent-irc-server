@@ -1,6 +1,7 @@
 .shipit
 Build.PL
 Changes
+cpanfile
 examples/proxy.pl
 examples/sample-ircd.pl
 examples/twitter.pl
@@ -9,7 +10,6 @@ MANIFEST			This list of files
 README
 t/00_compile.t
 t/01-simple.t
-t/02-mobirc-test.t
 t/03-notice.t
 t/04-privmsg.t
 t/05-list.t
