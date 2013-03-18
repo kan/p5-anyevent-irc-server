@@ -1,6 +1,6 @@
 requires 'AnyEvent::IRC';
 requires 'Object::Event';
-requires 'Class::Accessor::Fast';
+requires 'Class::Accessor::Lite';
 
 on 'configure' => sub {
     requires 'Module::Build' => '0.38';
