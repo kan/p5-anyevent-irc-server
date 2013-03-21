@@ -3,7 +3,7 @@ package AnyEvent::IRC::Server;
 use strict;
 use warnings;
 our $VERSION = '0.02';
-use base qw/Object::Event Class::Accessor::Fast/;
+use base qw/Object::Event/;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 use AnyEvent::IRC::Util qw/parse_irc_msg mk_msg/;
@@ -11,7 +11,11 @@ use Sys::Hostname;
 use POSIX;
 use Scalar::Util qw/refaddr/;
 
-__PACKAGE__->mk_accessors(qw/host port handles servername channels topics spoofed_nick prepared_cb nick2handle/);
+use Class::Accessor::Lite (
+    rw => [
+        qw(host port handles servername channels topics spoofed_nick prepared_cb nick2handle)
+    ],
+);
 
 my $CRLF = "\015\012";
 
