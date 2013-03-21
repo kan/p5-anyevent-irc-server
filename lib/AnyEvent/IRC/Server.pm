@@ -99,6 +99,8 @@ sub new {
                 # my $comment = sprintf '%s!%s@%s', $nick, $handle->{user}, $handle->{servername};
                 my $raw = mk_msg($comment, 'JOIN', $chan) . $CRLF;
                 for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+                    next unless $handle->{nick};
+                    next if $self->spoofed_nick->{$handle->{nick}};
                     $handle->push_write($raw);
                 }
                 $self->event('daemon_join' => $nick, $chan);
@@ -184,7 +186,8 @@ sub _send_chan_msg {
     my $raw = mk_msg($comment, @args) . $CRLF;
     if ($self->is_channel_name($chan)) {
         for my $handle (values %{$self->channels->{$chan}->{handles}}) {
-            next if $handle->{nick} eq $nick;
+            next if ($handle->{nick}||'') eq $nick;
+            next if $self->spoofed_nick->{$nick};
             $handle->push_write($raw);
         }
     } else {
@@ -247,8 +250,8 @@ sub add_spoofed_nick {
 # -------------------------------------------------------------------------
 
 sub daemon_cmd_join {
-    my ($self, $nick, $chan, $msg, $handle) = @_;
-    $self->_intern_join($nick, $chan, $handle);
+    my ($self, $nick, $chan, $msg) = @_;
+    $self->_intern_join($nick, $chan, $self->nick2handle->{$nick});
 }
 
 sub daemon_cmd_kick {
