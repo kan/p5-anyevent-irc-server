@@ -66,7 +66,7 @@ sub new {
     
     my $say = sub {
         my ($handle, $cmd, @args) = @_;
-        my $msg = mk_msg_ex(undef, $cmd, $handle->{nick}, @args);
+        my $msg = mk_msg_ex($self->host, $cmd, $handle->{nick}, @args);
         debugf("Sending '%s'", $msg);
         $msg .= $CRLF;
         $handle->push_write($msg)
