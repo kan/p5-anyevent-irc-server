@@ -6,7 +6,7 @@ our $VERSION = '0.02';
 use base qw/Object::Event/;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
-use AnyEvent::IRC::Util qw/parse_irc_msg mk_msg/;
+use AnyEvent::IRC::Util qw/parse_irc_msg/;
 use Sys::Hostname;
 use POSIX;
 use Scalar::Util qw/refaddr/;
@@ -25,6 +25,23 @@ BEGIN {
         *{"${name}"} = sub () { $code };
     }
 };
+
+sub debugf {
+    return unless $ENV{AEIS_DEBUG};
+    require Data::Dumper;
+    require Term::ANSIColor;
+    local $Data::Dumper::Terse=1;
+    local $Data::Dumper::Indent=0;
+    my $fmt = shift;
+    my $s = sprintf $fmt, (map {
+        ref($_) ? (
+            Data::Dumper::Dumper($_)
+        ) : (defined($_) ? $_ : '<<UNDEF>>')
+    } @_);
+    my ($package, $filename, $line) = caller(0);
+    $s .= " at $filename line $line\n";
+    print Term::ANSIColor::colored(["cyan"], $s);
+}
 
 sub new {
     my $class = shift;
@@ -46,9 +63,12 @@ sub new {
         @_,
     );
 
+    
     my $say = sub {
         my ($handle, $cmd, @args) = @_;
-        my $msg = mk_msg($self->host, $cmd, $handle->{nick}, @args) . $CRLF;
+        my $msg = mk_msg_ex(undef, $cmd, $handle->{nick}, @args);
+        debugf("Sending '%s'", $msg);
+        $msg .= $CRLF;
         $handle->push_write($msg)
     };
     my $need_more_params = sub {
@@ -59,12 +79,13 @@ sub new {
         nick => sub {
             my ($self, $msg, $handle) = @_;
             my ($nick) = @{$msg->{params}};
-            unless ($nick) {
+            unless (defined $nick) {
                 return $need_more_params->($handle, 'NICK');
             }
             if ($self->nick2handle->{$nick}) {
                 return $say->($handle, ERR_NICKNAMEINUSE, $nick, 'Nickname already in use');
             }
+            debugf("Set nick: %s", $nick);
             $handle->{nick} = $nick;
             $self->nick2handle->{$nick} = $handle;
             # TODO: broadcast to each user
@@ -92,16 +113,22 @@ sub new {
             }
             for my $chan ( split /,/, $chans ) {
                 my $nick = $handle->{nick};
+                debugf("%s joined to %s", $nick, $chans);
                 $self->channels->{$chan}->{handles}->{$nick} = $handle;
 
                 # server reply
                 $say->( $handle, RPL_TOPIC(), $chan, $self->topics->{$chan} || '' );
-                $say->( $handle, RPL_NAMREPLY(), $chan, "duke" ); # TODO
+                for my $handle (values %{$self->channels->{$chan}->{handles}}) {
+                    next unless $handle->{nick};
+                    next if $self->spoofed_nick->{$handle->{nick}};
+                    $say->( $handle, RPL_NAMREPLY(), $chan, $handle->{nick} );
+                }
+                $say->( $handle, RPL_ENDOFNAMES(), $chan, 'End of NAMES list.' );
 
                 # send join message
                 my $comment = sprintf '%s!%s@%s', $nick, $nick, $self->servername;
                 # my $comment = sprintf '%s!%s@%s', $nick, $handle->{user}, $handle->{servername};
-                my $raw = mk_msg($comment, 'JOIN', $chan) . $CRLF;
+                my $raw = mk_msg_ex($comment, 'JOIN', $chan) . $CRLF;
                 for my $handle (values %{$self->channels->{$chan}->{handles}}) {
                     next unless $handle->{nick};
                     next if $self->spoofed_nick->{$handle->{nick}};
@@ -144,6 +171,9 @@ sub new {
                 return $need_more_params->($handle, 'PRIVMSG');
             }
             my $nick = $handle->{nick};
+            if ($nick eq '*') {
+                warn 'Nick was not set.';
+            }
             $self->_intern_privmsg($nick, $chan, $text);
             $self->event('daemon_privmsg' => $nick, $chan, $text);
         },
@@ -167,7 +197,12 @@ sub new {
             my ($name) = @{$msg->{params}};
 
              unless ( $self->channels->{$name} ) {
-                return $need_more_params->($handle, 'WHO'); # TODO
+                 # TODO: ZNC calls '*'.
+                 # AEIS should process it.
+                debugf("The channel is not listed: $name");
+                $say->( $handle, RPL_ENDOFWHO(), 'END of /WHO list');
+                return;
+                # return $need_more_params->($handle, 'WHO'); # TODO
              }
 
             $say->( $handle, RPL_WHOREPLY(), $name, $handle->{user}, $handle->{hostname}, $handle->{servername}, $handle->{nick},"H:1", $handle->{realname});
@@ -187,7 +222,9 @@ sub _send_chan_msg {
     # send join message
     my $handle = $self->channels->{$chan}->{handles}->{$nick};
     my $comment = sprintf '%s!%s@%s', $nick, $handle->{user} || $nick, $handle->{servername} || $self->servername;
-    my $raw = mk_msg($comment, @args) . $CRLF;
+    my $raw = mk_msg_ex($comment, @args);
+    debugf("_send_chan_msg: %s", $raw);
+    $raw .= $CRLF;
     if ($self->is_channel_name($chan)) {
         for my $handle (values %{$self->channels->{$chan}->{handles}}) {
             next if ($handle->{nick}||'') eq $nick;
@@ -240,6 +277,7 @@ sub handle_msg {
     my ($self, $msg, $handle) = @_;
     my $event = lc($msg->{command});
        $event =~ s/^(\d+)$/irc_$1/g;
+    debugf("%s %s", $event, $msg);
     $self->event($event, $msg, $handle);
 }
 
@@ -280,6 +318,7 @@ sub daemon_cmd_privmsg {
 
 sub daemon_cmd_notice {
     my ($self, $nick, $chan, $msg) = @_;
+    debugf('%s', [$nick, $chan, $msg]);
     $self->_intern_notice($nick, $chan, $msg);
 }
 
@@ -321,6 +360,7 @@ sub _intern_privmsg {
 
 sub _intern_notice {
     my ($self, $nick, $chan, $text) = @_;
+    debugf('%s', [$nick, $chan, $text]);
     $self->_send_chan_msg($nick, $chan, 'NOTICE', $chan, $text);
 }
 
@@ -367,6 +407,28 @@ sub is_channel_name {
     my ( $self, $string ) = @_;
     my $cchrs = $self->{channel_chars};
     $string =~ /^([\Q$cchrs\E]+)(.+)$/;
+}
+
+sub mk_msg_ex {
+    my ( $prefix, $command, @params ) = @_;
+    my $msg = "";
+
+    $msg .= defined $prefix ? ":$prefix " : "";
+    $msg .= "$command";
+
+    my $trail;
+    debugf("%s", \@params);
+    if ( @params >= 2 ) {
+        $trail = pop @params;
+    }
+
+    # FIXME: params must be counted, and if > 13 they have to be
+    # concationated with $trail
+    map { $msg .= " $_" } @params;
+
+    $msg .= defined $trail ? " :$trail" : "";
+
+    return $msg;
 }
 
 1;
