@@ -397,6 +397,14 @@ AnyEvent::IRC::Server is
     -- mode support
     -- who support
 
+=head1 DEBUGGING
+
+You can trace events by L<Object::Event>'s feature.
+
+Use the environment variable B<PERL_OBJECT_EVENT_DEBUG>
+
+    export PERL_OBJECT_EVENT_DEBUG=2
+
 =head1 AUTHOR
 
 Kan Fushihara E<lt>default {at} example.comE<gt>
