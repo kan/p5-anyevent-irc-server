@@ -231,8 +231,9 @@ sub _send_chan_msg {
     $raw .= $CRLF;
     if ($self->is_channel_name($chan)) {
         for my $handle (values %{$self->channels->{$chan}->{handles}}) {
-            next if ($handle->{nick}||'') eq $nick;
-            next if $self->spoofed_nick->{$nick};
+            next unless $handle->{nick};
+            next if $handle->{nick} eq $nick;
+            next if $self->spoofed_nick->{$handle->{nick}};
             $handle->push_write($raw);
         }
     } else {
@@ -297,6 +298,8 @@ sub add_spoofed_nick {
 
 sub daemon_cmd_join {
     my ($self, $nick, $chan, $msg) = @_;
+    return if $self->channels->{$chan}->{handles}->{$nick};
+    $self->add_spoofed_nick($nick);
     $self->_intern_join($nick, $chan, $self->nick2handle->{$nick});
 }
 
