@@ -208,6 +208,10 @@ sub new {
             $say->( $handle, RPL_WHOREPLY(), $name, $handle->{user}, $handle->{hostname}, $handle->{servername}, $handle->{nick},"H:1", $handle->{realname});
             $say->( $handle, RPL_ENDOFWHO(), 'END of /WHO list');
         },
+        ping => sub {
+            my ($irc, $msg, $handle) = @_;
+            $say->( $handle, 'PONG', $msg->{params}->[0]);
+        },
     );
     return $self;
 }
