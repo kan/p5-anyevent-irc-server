@@ -330,7 +330,7 @@ sub _intern_list {
     my $nick = $handle->{nick};
     my $comment = $self->_server_comment($nick);
     my $send = sub {
-        my $raw = mk_msg($comment, @_) . $CRLF;
+        my $raw = mk_msg_ex($comment, @_) . $CRLF;
         $handle->push_write($raw);
     };
     my $send_rpl_list = sub {
@@ -394,7 +394,7 @@ sub _intern_kick {
     # TODO: oper check
     my $handle = $self->channels->{$chan}->{handles}->{$kicker};
     my $cmt_irc = sprintf '%s!%s@%s', $kicker, $handle->{user} || $kicker , $handle->{servername} || $self->servername;
-    my $raw = mk_msg($cmt_irc, 'KICK', $chan, $kickee, $comment) . $CRLF;
+    my $raw = mk_msg_ex($cmt_irc, 'KICK', $chan, $kickee, $comment) . $CRLF;
     for my $handle (values %{$self->channels->{$chan}->{handles}}) {
         $handle->push_write($raw);
     }
