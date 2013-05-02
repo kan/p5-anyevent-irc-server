@@ -8,7 +8,7 @@ use AnyEvent::IRC::Server;
 use AE;
 use AnyEvent::Debug;
 
-plan tests => 8;
+plan tests => 10;
 
 test_tcp(
     server => sub {
@@ -50,8 +50,9 @@ test_tcp(
         );
         $testbot->send_srv('join' => '#foo');
         $testbot->skip_first();
-        $testbot->is_response('332 testbot #foo ');
-        $testbot->is_response('353 testbot #foo duke');
+        $testbot->is_response('332 testbot #foo :');
+        $testbot->is_response('353 testbot #foo :testbot');
+        $testbot->is_response('366 testbot #foo :End of NAMES list.');
         $testbot->is_response(':testbot!testbot@fushihara.anyevent.server.irc JOIN #foo');
 
         # John is comming
@@ -64,9 +65,10 @@ test_tcp(
         $john->skip_first('332 testbot #foo ');
 
         # test.
+        $testbot->is_response('353 testbot #foo :testbot');
         $testbot->is_response(':john!john@fushihara.anyevent.server.irc JOIN #foo');
-        $testbot->is_response(':john!john@* NOTICE #foo yo');
-        $testbot->is_response(':kan!kan@fushihara.anyevent.server.irc NOTICE #foo YEAAAAH!');
+        $testbot->is_response(':john!john@* NOTICE #foo :yo');
+        $testbot->is_response(':kan!kan@fushihara.anyevent.server.irc NOTICE #foo :YEAAAAH!');
     }
 );
 

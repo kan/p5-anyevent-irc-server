@@ -36,7 +36,7 @@ $irc->reg_cb(
         my ($irc, $raw) = @_;
         is_deeply $raw,
           {
-            'params'  => ['testbot', 'Channel', 'Users Name'],
+            'params'  => ['testbot', 'Channel', 'Users :Name'],
             'command' => '321',
             'prefix'  => 'testbot!~testbot@fushihara.anyevent.server.irc'
           }, 'RPL_LISTSTART';
