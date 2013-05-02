@@ -33,7 +33,7 @@ Use the environment variable __PERL\_OBJECT\_EVENT\_DEBUG__
 
 # AUTHOR
 
-Kan Fushihara <default {at} example.com>
+Kan Fushihara <kan.fushihara {at} gmail.com>
 
 Tokuhiro Matsuno
 
