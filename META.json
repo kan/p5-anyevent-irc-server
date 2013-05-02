@@ -4,7 +4,7 @@
       "Kan Fushihara <default {at} example.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Minilla/v0.0.53, CPAN::Meta::Converter version 2.130880",
+   "generated_by" : "Minilla/v0.3.0, CPAN::Meta::Converter version 2.130880",
    "license" : [
       "perl_5"
    ],
@@ -36,11 +36,10 @@
       },
       "develop" : {
          "requires" : {
-            "Pod::Wordlist::hanekomu" : "0",
             "Test::CPAN::Meta" : "0",
             "Test::MinimumVersion" : "0.10108",
             "Test::Pod" : "1.41",
-            "Test::Spelling" : "0"
+            "Test::Spellunker" : "v0.2.2"
          }
       },
       "runtime" : {
@@ -70,7 +69,7 @@
          "web" : "https://github.com/kan/p5-anyevent-irc-server"
       }
    },
-   "version" : "0.02",
+   "version" : "0.03",
    "x_contributors" : [
       "Kan Fushihara <kan@mobilefactory.jp>",
       "Kan Fushihara <kan@edf3.(none)>",
