@@ -14,7 +14,7 @@ blib/
 META.yml
 MYMETA.*
 META.yml
-/AnyEvent::IRC::Server-*
+/AnyEvent-IRC-Server-*
 /.build
 /_build_params
 /Build
