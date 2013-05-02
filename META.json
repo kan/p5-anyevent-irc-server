@@ -1,0 +1,81 @@
+{
+   "abstract" : "An event based IRC protocol server API",
+   "author" : [
+      "Kan Fushihara <default {at} example.com>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Minilla/v0.0.53, CPAN::Meta::Converter version 2.130880",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "AnyEvent::IRC::Server",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "xt",
+         "inc",
+         "share",
+         "eg",
+         "examples",
+         "author"
+      ]
+   },
+   "prereqs" : {
+      "configure" : {
+         "requires" : {
+            "CPAN::Meta" : "0",
+            "CPAN::Meta::Prereqs" : "0",
+            "Module::Build" : "0.38",
+            "Module::Build::Pluggable" : "0",
+            "Module::Build::Pluggable::CPANfile" : "0"
+         }
+      },
+      "develop" : {
+         "requires" : {
+            "Pod::Wordlist::hanekomu" : "0",
+            "Test::CPAN::Meta" : "0",
+            "Test::MinimumVersion" : "0.10108",
+            "Test::Pod" : "1.41",
+            "Test::Spelling" : "0"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "AnyEvent::IRC" : "0",
+            "Class::Accessor::Lite" : "0",
+            "Object::Event" : "0"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Test::More" : "0.98",
+            "Test::Requires" : "0",
+            "Test::TCP" : "0"
+         }
+      }
+   },
+   "release_status" : "unstable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/kan/p5-anyevent-irc-server/issues"
+      },
+      "homepage" : "https://github.com/kan/p5-anyevent-irc-server",
+      "repository" : {
+         "type" : "git",
+         "url" : "git://github.com/kan/p5-anyevent-irc-server.git",
+         "web" : "https://github.com/kan/p5-anyevent-irc-server"
+      }
+   },
+   "version" : "0.02",
+   "x_contributors" : [
+      "Kan Fushihara <kan@mobilefactory.jp>",
+      "Kan Fushihara <kan@edf3.(none)>",
+      "Kazuhiro Osawa <yappo@shibuya.pl>",
+      "tokuhirom <tokuhirom@gmail.com>",
+      "Kan Fushihara <kan.fushihara@gmail.com>"
+   ]
+}
